@@ -17,8 +17,8 @@
         "backgroundColor": "#0284c7"
       }
     },
-    "plugins": [
-      "expo-asset"
-    ]
+    "web": {
+      "bundler": "metro"
+    }
   }
 }

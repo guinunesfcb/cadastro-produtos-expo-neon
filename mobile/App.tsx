@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, SafeAreaView, Platform, StatusBar as RNStatusBar } from 'react-native';
+import { StyleSheet, SafeAreaView, Platform, StatusBar as RNStatusBar, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { HomeScreen } from './src/screens/HomeScreen';
 
@@ -7,7 +7,9 @@ export default function App() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar style="light" backgroundColor="#0284c7" />
-      <HomeScreen />
+      <View style={styles.appContainer}>
+        <HomeScreen />
+      </View>
     </SafeAreaView>
   );
 }
@@ -17,5 +19,17 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0284c7',
     paddingTop: Platform.OS === 'android' ? RNStatusBar.currentHeight : 0,
+  },
+  appContainer: {
+    flex: 1,
+    maxWidth: Platform.OS === 'web' ? 640 : undefined,
+    width: '100%',
+    alignSelf: 'center',
+    backgroundColor: '#f1f5f9',
+    ...(Platform.OS === 'web'
+      ? {
+          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.1)',
+        }
+      : {}),
   },
 });

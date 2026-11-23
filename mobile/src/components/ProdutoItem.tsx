@@ -5,10 +5,10 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { Produto } from '../types/produto';
 import { formatarMoeda } from '../utils/currency';
+import { exibirAlerta, exibirConfirmacao } from '../utils/alerts';
 
 interface ProdutoItemProps {
   produto: Produto;
@@ -22,23 +22,17 @@ export const ProdutoItem: React.FC<ProdutoItemProps> = ({
   excluindo,
 }) => {
   const handleConfirmarExclusao = () => {
-    Alert.alert(
+    exibirConfirmacao(
       'Confirmar Exclusao',
       `Deseja realmente excluir o produto "${produto.nome}"?`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Excluir',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await onExcluir(produto.id);
-            } catch (error: any) {
-              Alert.alert('Erro', error.message || 'Falha ao excluir produto.');
-            }
-          },
-        },
-      ]
+      async () => {
+        try {
+          await onExcluir(produto.id);
+        } catch (error: any) {
+          exibirAlerta('Erro', error.message || 'Falha ao excluir produto.');
+        }
+      },
+      'Excluir'
     );
   };
 

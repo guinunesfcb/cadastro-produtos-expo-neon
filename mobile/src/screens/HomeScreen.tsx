@@ -6,7 +6,6 @@ import {
   StyleSheet,
   ActivityIndicator,
   RefreshControl,
-  Alert,
 } from 'react-native';
 import { Header } from '../components/Header';
 import { ProdutoForm } from '../components/ProdutoForm';
@@ -16,6 +15,7 @@ import { ErrorFeedback } from '../components/ErrorFeedback';
 import { fetchProdutos, criarProduto, deletarProduto } from '../services/api';
 import { Produto } from '../types/produto';
 import { getApiBaseUrl } from '../config/apiConfig';
+import { exibirAlerta } from '../utils/alerts';
 
 export const HomeScreen: React.FC = () => {
   const [produtos, setProdutos] = useState<Produto[]>([]);
@@ -56,7 +56,7 @@ export const HomeScreen: React.FC = () => {
       const novoProduto = await criarProduto(nome, preco);
       // Atualiza a lista imediatamente colocando o mais recente no topo
       setProdutos((atuais) => [novoProduto, ...atuais.filter((p) => p.id !== novoProduto.id)]);
-      Alert.alert('Sucesso', `Produto "${novoProduto.nome}" cadastrado com sucesso!`);
+      exibirAlerta('Sucesso', `Produto "${novoProduto.nome}" cadastrado com sucesso!`);
     } finally {
       setSalvando(false);
     }
@@ -70,9 +70,9 @@ export const HomeScreen: React.FC = () => {
       await deletarProduto(id);
       // Atualiza imediatamente a lista removendo o item
       setProdutos((atuais) => atuais.filter((p) => p.id !== id));
-      Alert.alert('Sucesso', 'Produto removido com sucesso.');
+      exibirAlerta('Sucesso', 'Produto removido com sucesso.');
     } catch (err: any) {
-      Alert.alert('Erro', err.message || 'Nao foi possivel excluir o produto.');
+      exibirAlerta('Erro', err.message || 'Nao foi possivel excluir o produto.');
     } finally {
       setExcluindoIds((atuais) => atuais.filter((item) => item !== id));
     }

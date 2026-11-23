@@ -6,9 +6,9 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { normalizarPreco, validarNome } from '../utils/validators';
+import { exibirAlerta } from '../utils/alerts';
 
 interface ProdutoFormProps {
   onSalvar: (nome: string, preco: number) => Promise<void>;
@@ -27,7 +27,7 @@ export const ProdutoForm: React.FC<ProdutoFormProps> = ({ onSalvar, carregando }
     const resNome = validarNome(nome);
     if (!resNome.valido || !resNome.nomeFormatado) {
       setErroValidacao(resNome.erro || 'Nome invalido');
-      Alert.alert('Atencao', resNome.erro || 'Por favor, informe o nome do produto.');
+      exibirAlerta('Atencao', resNome.erro || 'Por favor, informe o nome do produto.');
       return;
     }
 
@@ -36,7 +36,7 @@ export const ProdutoForm: React.FC<ProdutoFormProps> = ({ onSalvar, carregando }
     if (precoNormalizado === null) {
       const msg = 'Informe um preco valido maior que zero (ex: 29,90 ou 1250.50).';
       setErroValidacao(msg);
-      Alert.alert('Atencao', msg);
+      exibirAlerta('Atencao', msg);
       return;
     }
 
@@ -49,7 +49,7 @@ export const ProdutoForm: React.FC<ProdutoFormProps> = ({ onSalvar, carregando }
       setErroValidacao(null);
     } catch (err: any) {
       // 7. Apresenta erro caso ocorra falha
-      Alert.alert('Erro ao Salvar', err.message || 'Falha ao salvar produto.');
+      exibirAlerta('Erro ao Salvar', err.message || 'Falha ao salvar produto.');
     }
   };
 
