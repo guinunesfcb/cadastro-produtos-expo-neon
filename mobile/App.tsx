@@ -1,14 +1,20 @@
 import React from 'react';
 import { StyleSheet, SafeAreaView, Platform, StatusBar as RNStatusBar, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { HomeScreen } from './src/screens/HomeScreen';
+import { AuthProvider } from './src/contexts/AuthContext';
+import { ProductsProvider } from './src/contexts/ProductsContext';
+import { AppNavigator } from './src/navigation/AppNavigator';
 
 export default function App() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar style="light" backgroundColor="#0284c7" />
       <View style={styles.appContainer}>
-        <HomeScreen />
+        <AuthProvider>
+          <ProductsProvider>
+            <AppNavigator />
+          </ProductsProvider>
+        </AuthProvider>
       </View>
     </SafeAreaView>
   );

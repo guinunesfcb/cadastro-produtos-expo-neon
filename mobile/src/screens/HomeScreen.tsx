@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -6,115 +6,129 @@ import {
   StyleSheet,
   ActivityIndicator,
   RefreshControl,
+  TouchableOpacity,
 } from 'react-native';
+import { useAuth } from '../contexts/AuthContext';
+import { useNavigation } from '../navigation/AppNavigator';
+import { useProducts } from '../hooks/useProducts';
 import { Header } from '../components/Header';
-import { ProdutoForm } from '../components/ProdutoForm';
-import { ProdutoItem } from '../components/ProdutoItem';
+import { Button } from '../components/Button';
 import { EmptyList } from '../components/EmptyList';
 import { ErrorFeedback } from '../components/ErrorFeedback';
-import { fetchProdutos, criarProduto, deletarProduto } from '../services/api';
-import { Produto } from '../types/produto';
-import { getApiBaseUrl } from '../config/apiConfig';
-import { exibirAlerta } from '../utils/alerts';
+import { formatCurrency, showConfirm, showAlert } from '../utils/formatCurrency';
+import { Product } from '../types/Product';
+import { getApiBaseUrl } from '../services/api';
 
 export const HomeScreen: React.FC = () => {
-  const [produtos, setProdutos] = useState<Produto[]>([]);
-  const [carregando, setCarregando] = useState<boolean>(true);
-  const [atualizando, setAtualizando] = useState<boolean>(false);
-  const [salvando, setSalvando] = useState<boolean>(false);
-  const [excluindoIds, setExcluindoIds] = useState<number[]>([]);
-  const [erroCarregamento, setErroCarregamento] = useState<string | null>(null);
+  const { user, logout } = useAuth();
+  const { navigate } = useNavigation();
+  const {
+    products,
+    loading,
+    refreshing,
+    deletingIds,
+    error,
+    loadProducts,
+    removeProduct,
+  } = useProducts();
 
-  // Carrega a lista de produtos da API
-  const carregarProdutos = useCallback(async (isPullToRefresh = false) => {
-    if (isPullToRefresh) {
-      setAtualizando(true);
-    } else {
-      setCarregando(true);
-    }
-    setErroCarregamento(null);
-
-    try {
-      const lista = await fetchProdutos();
-      setProdutos(lista);
-    } catch (err: any) {
-      setErroCarregamento(err.message || 'Erro ao carregar produtos do servidor.');
-    } finally {
-      setCarregando(false);
-      setAtualizando(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    carregarProdutos();
-  }, [carregarProdutos]);
-
-  // Handler para salvar novo produto
-  const handleSalvarProduto = async (nome: string, preco: number) => {
-    setSalvando(true);
-    try {
-      const novoProduto = await criarProduto(nome, preco);
-      // Atualiza a lista imediatamente colocando o mais recente no topo
-      setProdutos((atuais) => [novoProduto, ...atuais.filter((p) => p.id !== novoProduto.id)]);
-      exibirAlerta('Sucesso', `Produto "${novoProduto.nome}" cadastrado com sucesso!`);
-    } finally {
-      setSalvando(false);
-    }
+  const handleExcluir = (produto: Product) => {
+    showConfirm(
+      'Confirmar Exclusão',
+      `Deseja realmente excluir o produto "${produto.nome}"?`,
+      async () => {
+        try {
+          await removeProduct(produto.id);
+          showAlert('Sucesso', 'Produto removido com sucesso.');
+        } catch (err: any) {
+          showAlert('Erro', err.message || 'Falha ao excluir o produto.');
+        }
+      },
+      'Excluir'
+    );
   };
 
-  // Handler para excluir produto
-  const handleExcluirProduto = async (id: number) => {
-    // Evita multiplos cliques adicionando o ID a lista de exclusao ativa
-    setExcluindoIds((atuais) => [...atuais, id]);
-    try {
-      await deletarProduto(id);
-      // Atualiza imediatamente a lista removendo o item
-      setProdutos((atuais) => atuais.filter((p) => p.id !== id));
-      exibirAlerta('Sucesso', 'Produto removido com sucesso.');
-    } catch (err: any) {
-      exibirAlerta('Erro', err.message || 'Nao foi possivel excluir o produto.');
-    } finally {
-      setExcluindoIds((atuais) => atuais.filter((item) => item !== id));
-    }
-  };
-
-  // Cabecalho da lista (Header + Formulario + Titulo da secao)
   const renderHeader = () => (
     <View>
-      <Header />
-      <ProdutoForm onSalvar={handleSalvarProduto} carregando={salvando} />
+      <Header
+        title="Catálogo de Produtos"
+        subtitle={user ? `Conectado como ${user.name}` : 'PostgreSQL Neon Serverless'}
+        showLogout
+        onLogout={logout}
+      />
 
-      {erroCarregamento && (
+      <View style={styles.actionContainer}>
+        <Button
+          title="+ Cadastrar Novo Produto"
+          onPress={() => navigate('Product')}
+          style={styles.botaoNovo}
+        />
+      </View>
+
+      {error && (
         <ErrorFeedback
-          mensagem={erroCarregamento}
-          onRetry={() => carregarProdutos()}
-          carregando={carregando}
+          mensagem={error}
+          onRetry={() => loadProducts()}
+          carregando={loading}
         />
       )}
 
       <View style={styles.secaoTituloContainer}>
-        <Text style={styles.secaoTitulo}>Produtos Cadastrados</Text>
+        <Text style={styles.secaoTitulo}>Lista de Produtos</Text>
         <Text style={styles.contadorBadge}>
-          {produtos.length} {produtos.length === 1 ? 'item' : 'itens'}
+          {products.length} {products.length === 1 ? 'item' : 'itens'}
         </Text>
       </View>
     </View>
   );
 
-  // Rodape da lista com informacoes de conexao da API
   const renderFooter = () => (
     <View style={styles.footerContainer}>
       <Text style={styles.footerTexto}>
-        Conectado a: {getApiBaseUrl()}
+        API: {getApiBaseUrl()}
       </Text>
     </View>
   );
 
+  const renderItem = ({ item }: { item: Product }) => {
+    const excluindo = deletingIds.includes(item.id);
+
+    return (
+      <View style={styles.itemCard}>
+        <View style={styles.itemInfo}>
+          <Text style={styles.itemNome} numberOfLines={2}>
+            {item.nome}
+          </Text>
+          <Text style={styles.itemPreco}>{formatCurrency(item.preco)}</Text>
+        </View>
+
+        <TouchableOpacity
+          style={[styles.botaoExcluir, excluindo && styles.botaoDesabilitado]}
+          onPress={() => handleExcluir(item)}
+          disabled={excluindo}
+          activeOpacity={0.7}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityRole="button"
+          accessibilityLabel={`Excluir produto ${item.nome}`}
+        >
+          {excluindo ? (
+            <ActivityIndicator size="small" color="#dc2626" />
+          ) : (
+            <Text style={styles.textoBotaoExcluir}>Excluir</Text>
+          )}
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
   return (
     <View style={styles.container}>
-      {carregando && produtos.length === 0 ? (
+      {loading && products.length === 0 ? (
         <View style={styles.loadingContainer}>
-          <Header />
+          <Header
+            title="Catálogo de Produtos"
+            subtitle="Carregando dados..."
+          />
           <View style={styles.centroLoading}>
             <ActivityIndicator size="large" color="#0284c7" />
             <Text style={styles.loadingTexto}>Carregando produtos...</Text>
@@ -122,22 +136,16 @@ export const HomeScreen: React.FC = () => {
         </View>
       ) : (
         <FlatList
-          data={produtos}
+          data={products}
           keyExtractor={(item) => item.id.toString()}
-          renderItem={({ item }) => (
-            <ProdutoItem
-              produto={item}
-              onExcluir={handleExcluirProduto}
-              excluindo={excluindoIds.includes(item.id)}
-            />
-          )}
+          renderItem={renderItem}
           ListHeaderComponent={renderHeader}
           ListFooterComponent={renderFooter}
-          ListEmptyComponent={!erroCarregamento ? <EmptyList /> : null}
+          ListEmptyComponent={!error ? <EmptyList /> : null}
           refreshControl={
             <RefreshControl
-              refreshing={atualizando}
-              onRefresh={() => carregarProdutos(true)}
+              refreshing={refreshing}
+              onRefresh={() => loadProducts(true)}
               colors={['#0284c7']}
               tintColor="#0284c7"
             />
@@ -158,12 +166,20 @@ const styles = StyleSheet.create({
   listContent: {
     paddingBottom: 32,
   },
+  actionContainer: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 8,
+  },
+  botaoNovo: {
+    backgroundColor: '#0284c7',
+  },
   secaoTituloContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginHorizontal: 18,
-    marginTop: 18,
+    marginTop: 12,
     marginBottom: 8,
   },
   secaoTitulo: {
@@ -179,6 +195,57 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 12,
+  },
+  itemCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    padding: 16,
+    marginHorizontal: 16,
+    marginVertical: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  itemInfo: {
+    flex: 1,
+    marginRight: 12,
+  },
+  itemNome: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#0f172a',
+    marginBottom: 4,
+  },
+  itemPreco: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#059669',
+  },
+  botaoExcluir: {
+    backgroundColor: '#fee2e2',
+    borderWidth: 1,
+    borderColor: '#fca5a5',
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  botaoDesabilitado: {
+    opacity: 0.6,
+  },
+  textoBotaoExcluir: {
+    color: '#dc2626',
+    fontWeight: '600',
+    fontSize: 13,
   },
   loadingContainer: {
     flex: 1,
